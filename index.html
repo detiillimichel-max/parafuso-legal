@@ -2,38 +2,168 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Nut Sort</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nut Sort – Ordene os Parafusos</title>
+<meta name="description" content="Jogo de puzzle: ordene as porcas por cor nos parafusos!">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #1e1a3a;
+    --bg2: #2a2550;
+    --panel: #13112b;
+    --accent: #f5a623;
+    --accent2: #e83e8c;
+    --text: #ffffff;
+    --radius: 16px;
+    --shadow: rgba(0,0,0,0.5);
+  }
+  html, body { width: 100%; height: 100%; background: var(--bg); font-family: 'Nunito', sans-serif; color: var(--text); overflow: hidden; touch-action: manipulation; user-select: none; }
+  #app { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 480px; margin: 0 auto; position: relative; }
+  .screen { display: none; flex-direction: column; width: 100%; height: 100%; position: absolute; inset: 0; }
+  .screen.active { display: flex; }
+  #home { background: radial-gradient(ellipse at 50% 30%, #2e2860 0%, #1e1a3a 70%); align-items: center; justify-content: center; gap: 24px; padding: 40px 24px; }
+  .home-logo { font-size: 2.6rem; font-weight: 900; letter-spacing: 1px; background: linear-gradient(135deg, #ffd700, #f5a623, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; line-height: 1.1; }
+  .home-sub { color: #a89fd8; font-size: 1rem; text-align: center; }
+  .home-nuts { display: flex; gap: 10px; align-items: flex-end; margin: 8px 0; }
+  .home-bolt { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .btn-primary { background: linear-gradient(135deg, #f5a623, #e8832a); color: #fff; font-size: 1.2rem; font-weight: 900; border: none; border-radius: 50px; padding: 16px 48px; cursor: pointer; box-shadow: 0 6px 24px rgba(245,166,35,0.4); transition: transform 0.1s; letter-spacing: 1px; }
+  .btn-primary:active { transform: scale(0.96); }
+  .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+  .diff-btn { background: var(--bg2); border: 2px solid transparent; border-radius: var(--radius); padding: 16px 8px; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .diff-btn .diff-label { font-size: 1rem; font-weight: 800; color: var(--text); }
+  .diff-btn .diff-levels { font-size: 0.75rem; color: #a89fd8; margin-top: 2px; }
+  .diff-btn.selected { border-color: var(--accent); background: #332e60; box-shadow: 0 0 0 2px rgba(245,166,35,0.2); }
+  #levelSelect { background: var(--bg); padding: 0; flex-direction: column; }
+  .ls-header { display: flex; align-items: center; gap: 12px; padding: 18px 20px 12px; background: var(--panel); border-bottom: 1px solid #2a2550; }
+  .ls-title { font-size: 1.3rem; font-weight: 900; flex: 1; }
+  .ls-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 20px; overflow-y: auto; flex: 1; }
+  .lv-btn { aspect-ratio: 1; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900; cursor: pointer; border: 2px solid transparent; transition: all 0.12s; position: relative; }
+  .lv-btn.unlocked { background: var(--bg2); color: var(--text); }
+  .lv-btn.completed { background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff; }
+  .lv-btn.locked { background: #1a1730; color: #4a4570; cursor: not-allowed; }
+  .lv-star { font-size: 0.8rem; position: absolute; bottom: 8px; letter-spacing: 2px; }
+  #game { background: var(--bg); flex-direction: column; }
+  .game-header { display: flex; align-items: center; padding: 14px 16px 10px; gap: 10px; background: var(--panel); }
+  .gh-back, .gh-reset { width: 42px; height: 42px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; border: none; color: var(--accent2); font-weight: 900; box-shadow: 0 2px 8px var(--shadow); flex-shrink: 0; }
+  .gh-center { flex: 1; text-align: center; }
+  .gh-diff { font-size: 0.7rem; color: #a89fd8; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .gh-level { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+  .game-board { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 8px; gap: 18px; overflow: hidden; }
+  .board-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .bolt-slot { display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.15s; position: relative; }
+  .bolt-slot.selected { transform: translateY(-14px); }
+  .bolt-slot.hintable { animation: hint-pulse 0.6s ease-in-out 3; }
+  @keyframes hint-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .bolt-tip { width: 14px; height: 18px; background: linear-gradient(to bottom, #e0e0e0, #b0b0b0); border-radius: 8px 8px 4px 4px; box-shadow: 0 2px 6px var(--shadow); position: relative; z-index: 2; flex-shrink: 0; }
+  .bolt-thread { width: 18px; background: repeating-linear-gradient(to bottom, #c0c0c0 0px, #c0c0c0 3px, #989898 3px, #989898 6px); flex: 1; min-height: 10px; position: relative; z-index: 1; flex-shrink: 0; }
+  .bolt-base { width: 64px; height: 16px; background: radial-gradient(ellipse at center, #a0a0a0, #606060); border-radius: 50%; box-shadow: 0 4px 10px var(--shadow); flex-shrink: 0; }
+  .nut { width: 56px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; position: relative; z-index: 3; box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3); flex-shrink: 0; clip-path: polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%); margin: -5px 0; }
+  .nut.anim { animation: nut-pop 0.25s ease-out; }
+  @keyframes nut-pop { 0% { transform: scale(0.8); opacity: 0.5; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  .nut-icon { font-size: 1.1rem; pointer-events: none; filter: brightness(0.8); }
+  .nut-green  { background: #27ae60; }
+  .nut-yellow { background: #f5a623; }
+  .nut-pink   { background: #e83e8c; }
+  .nut-blue   { background: #3498db; }
+  .nut-red    { background: #e74c3c; }
+  .nut-orange { background: #e67e22; }
+  .nut-purple { background: #6c5ce7; }
+  .nut-cyan   { background: #00cec9; }
+  .game-bottom { display: flex; justify-content: space-around; align-items: flex-end; padding: 12px 16px 20px; background: var(--panel); border-top: 1px solid #2a2550; }
+  .gb-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; background: none; border: none; color: var(--text); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 0.85rem; transition: transform 0.1s; }
+  .gb-btn:active { transform: scale(0.92); }
+  .gb-circle { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #f5a623, #e8832a); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 16px rgba(245,166,35,0.4); position: relative; }
+  .gb-badge { position: absolute; top: -4px; right: -4px; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #333; font-size: 0.75rem; font-weight: 900; display: flex; align-items: center; justify-content: center; border: 2px solid var(--accent); }
+  #winOverlay { position: absolute; inset: 0; z-index: 100; background: rgba(20,16,45,0.88); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px 24px; }
+  #winOverlay.show { display: flex; }
+  .win-confetti { font-size: 3rem; animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .win-title { font-size: 2.4rem; font-weight: 900; background: linear-gradient(135deg, #ffd700, #f5a623); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
+  .win-sub { color: #a89fd8; font-size: 1rem; text-align: center; }
+  .win-stars { font-size: 2rem; letter-spacing: 6px; }
+  .win-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+  .btn-secondary { background: var(--bg2); color: var(--text); border: 2px solid #332e60; border-radius: 50px; padding: 14px 32px; font-size: 1rem; font-weight: 800; cursor: pointer; font-family: 'Nunito', sans-serif; transition: border-color 0.15s; }
+  .btn-secondary:hover { border-color: var(--accent); }
+  #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%) translateY(-30px); background: #332e60; color: #fff; padding: 10px 24px; border-radius: 50px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 4px 20px var(--shadow); pointer-events: none; opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 200; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
 </head>
 <body>
 <div id="app">
   <div id="home" class="screen active">
     <div class="home-logo">🔩 Nut Sort</div>
     <div class="home-sub">Ordene as porcas por cor!</div>
+    <div class="home-nuts">
+      <div class="home-bolt"><div class="nut nut-green" style="width:40px;height:28px"></div><div class="nut nut-green" style="width:40px;height:28px"></div><div class="nut nut-green" style="width:40px;height:28px"></div></div>
+      <div class="home-bolt"><div class="nut nut-yellow" style="width:40px;height:28px"></div><div class="nut nut-pink" style="width:40px;height:28px"></div><div class="nut nut-blue" style="width:40px;height:28px"></div></div>
+      <div class="home-bolt"><div class="nut nut-red" style="width:40px;height:28px"></div><div class="nut nut-orange" style="width:40px;height:28px"></div><div class="nut nut-yellow" style="width:40px;height:28px"></div></div>
+    </div>
+    <div style="width:100%"><div style="font-size:0.85rem;color:#a89fd8;font-weight:700;text-align:center;margin-bottom:10px;letter-spacing:1px">ESCOLHA A DIFICULDADE</div>
+      <div class="diff-grid">
+        <div class="diff-btn selected" data-diff="facil"><div style="font-size:1.4rem">😊</div><div class="diff-label">Fácil</div><div class="diff-levels">20 níveis</div></div>
+        <div class="diff-btn" data-diff="medio"><div style="font-size:1.4rem">🧠</div><div class="diff-label">Médio</div><div class="diff-levels">20 níveis</div></div>
+        <div class="diff-btn" data-diff="dificil"><div style="font-size:1.4rem">🔥</div><div class="diff-label">Difícil</div><div class="diff-levels">20 níveis</div></div>
+        <div class="diff-btn" data-diff="expert"><div style="font-size:1.4rem">💀</div><div class="diff-label">Expert</div><div class="diff-levels">20 níveis</div></div>
+      </div>
+    </div>
     <button class="btn-primary" id="btnPlay">JOGAR</button>
   </div>
-
   <div id="levelSelect" class="screen">
-    <div class="ls-header"><button class="gh-back" id="lsBack">‹</button><div class="ls-title">Fácil</div></div>
+    <div class="ls-header"><button class="gh-back" id="lsBack">‹</button><div class="ls-title" id="lsTitle">Fácil</div></div>
     <div class="ls-grid" id="lsGrid"></div>
   </div>
-
   <div id="game" class="screen">
-    <div class="game-header">
-      <button class="gh-back" id="ghBack">‹</button>
-      <div class="gh-center"><div class="gh-diff" id="ghDiff">MÉDIO</div><div class="gh-level" id="ghLevel">Nível 1</div></div>
-      <button class="gh-reset" id="ghReset">↻</button>
-    </div>
+    <div class="game-header"><button class="gh-back" id="ghBack">‹</button><div class="gh-center"><div class="gh-diff" id="ghDiff">FÁCIL</div><div class="gh-level" id="ghLevel">Nível 1</div></div><button class="gh-reset" id="ghReset">↺</button></div>
     <div class="game-board" id="gameBoard"></div>
     <div class="game-bottom">
       <button class="gb-btn" id="btnUndo"><div class="gb-circle">↩</div><span>Desfazer</span></button>
-      <button class="gb-btn" id="btnHint"><div class="gb-circle">💡<div class="gb-badge" id="hintBadge">2</div></div><span>Dica</span></button>
-      <button class="gb-btn" id="btnAdd"><div class="gb-circle">＋</div><span>Adicionar</span></button>
+      <button class="gb-btn" id="btnHint"><div class="gb-circle">💡<div class="gb-badge" id="hintBadge">3</div></div><span>Dica</span></button>
+      <button class="gb-btn" id="btnAdd"><div class="gb-circle">➕</div><span>Adicionar</span></button>
     </div>
-    <div id="winOverlay"><div class="win-title">BRILHA!</div><button class="btn-primary" id="btnNext">PRÓXIMO</button></div>
+    <div id="winOverlay"><div class="win-confetti">🎉</div><div class="win-title">BRILHA!</div><div class="win-stars" id="winStars">⭐⭐⭐</div><div class="win-sub" id="winSub"></div><div class="win-btns"><button class="btn-primary" id="btnNext">PRÓXIMO NÍVEL →</button><button class="btn-secondary" id="btnReplay">Repetir</button><button class="btn-secondary" id="btnMenu">Menu</button></div></div>
   </div>
+  <div id="toast"></div>
 </div>
-<script src="script.js"></script>
-</body>
+<script>
+const COLORS=['green','yellow','pink','blue','red','orange','purple','cyan'];
+const COLOR_ICONS={green:'☘️',yellow:'☀️',pink:'👑',blue:'💧',red:'❤️',orange:'⚡',purple:'🌙',cyan:'❄️'};
+function generateLevel(difficulty,levelNum){
+  // FASES FÁCEIS MANUAIS
+  if(difficulty==='facil'){
+    if(levelNum===1) return {bolts:[{nuts:['pink','pink','pink'],capacity:3},{nuts:['green','green','green'],capacity:3},{nuts:['yellow','yellow','yellow'],capacity:3},{nuts:[],capacity:3}]};
+    if(levelNum===2) return {bolts:[{nuts:['blue','blue','pink'],capacity:3},{nuts:['pink','pink','blue'],capacity:3},{nuts:['yellow','yellow','yellow'],capacity:3},{nuts:[],capacity:3}]};
+    if(levelNum===3) return {bolts:[{nuts:['red','green','red'],capacity:3},{nuts:['green','red','green'],capacity:3},{nuts:['yellow','yellow','yellow'],capacity:3},{nuts:[],capacity:3}]};
+  }
+  if(difficulty==='medio' && levelNum===1){
+    return {bolts:[{nuts:['green','pink'],capacity:4},{nuts:['green','pink','green','pink'],capacity:4},{nuts:['blue','blue','blue'],capacity:4},{nuts:['yellow','yellow','yellow'],capacity:4},{nuts:[],capacity:4}]};
+  }
+  const cfg={facil:{bolts:4,nutH:3,colors:3,extra:1},medio:{bolts:5,nutH:4,colors:4,extra:1},dificil:{bolts:7,nutH:4,colors:5,extra:2},expert:{bolts:9,nutH:5,colors:6,extra:2}}[difficulty];
+  const seed=difficulty.charCodeAt(0)*31+levelNum*17; let s=seed; const rng=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
+  const shuffle=(a,r)=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  const colors=shuffle(COLORS.slice(),rng).slice(0,cfg.colors); let all=[]; colors.forEach(c=>{for(let i=0;i<cfg.nutH;i++)all.push(c)}); all=shuffle(all,rng);
+  const bolts=[]; let idx=0; for(let b=0;b<cfg.colors;b++){bolts.push({nuts:all.slice(idx,idx+cfg.nutH),capacity:cfg.nutH});idx+=cfg.nutH}
+  for(let e=0;e<cfg.extra;e++)bolts.push({nuts:[],capacity:cfg.nutH}); return {bolts};
+}
+const SAVE_KEY='nutsort_save';const loadSave=()=>{try{return JSON.parse(localStorage.getItem(SAVE_KEY))||{}}catch{return{}}};const writeSave=s=>localStorage.setItem(SAVE_KEY,JSON.stringify(s));
+let save=loadSave(),currentDiff='facil',currentLevel=1,bolts=[],selectedBolt=-1,history=[],moveCount=0,hints=3,extraBolts=0;
+const DIFF_NAMES={facil:'Fácil',medio:'Médio',dificil:'Difícil',expert:'Expert'},MAX_LEVELS=20;
+const $=id=>document.getElementById(id), $board=$('gameBoard'),$winOverlay=$('winOverlay'),$toast=$('toast'),$ghDiff=$('ghDiff'),$ghLevel=$('ghLevel'),$hintBadge=$('hintBadge'),$lsTitle=$('lsTitle'),$lsGrid=$('lsGrid'),$winStars=$('winStars'),$winSub=$('winSub');
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+document.querySelectorAll('.diff-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');currentDiff=btn.dataset.diff}));
+$('btnPlay').onclick=()=>openLevelSelect(currentDiff);$('lsBack').onclick=()=>showScreen('home');
+function openLevelSelect(diff){currentDiff=diff;$lsTitle.textContent=DIFF_NAMES[diff];const saved=save[diff]||{};$lsGrid.innerHTML='';for(let i=1;i<=MAX_LEVELS;i++){const btn=document.createElement('div');btn.className='lv-btn';const completed=saved[i],unlocked=i===1||saved[i-1];if(completed){btn.classList.add('completed');btn.innerHTML=`${i}<div class="lv-star">⭐⭐⭐</div>`}else if(unlocked){btn.classList.add('unlocked');btn.textContent=i}else{btn.classList.add('locked');btn.innerHTML='🔒'}if(unlocked)btn.onclick=()=>startGame(diff,i);$lsGrid.appendChild(btn)}showScreen('levelSelect')}
+function startGame(diff,level){currentDiff=diff;currentLevel=level;const data=generateLevel(diff,level);bolts=data.bolts.map(b=>({nuts:[...b.nuts],capacity:b.capacity}));selectedBolt=-1;history=[];moveCount=0;hints=3;extraBolts=0;$hintBadge.textContent=hints;$ghDiff.textContent=DIFF_NAMES[diff].toUpperCase();$ghLevel.textContent=`Nível ${level}`;$winOverlay.classList.remove('show');renderBoard();showScreen('game')}
+$('ghBack').onclick=()=>openLevelSelect(currentDiff);$('ghReset').onclick=()=>startGame(currentDiff,currentLevel);$('btnUndo').onclick=undoMove;$('btnHint').onclick=doHint;$('btnAdd').onclick=addExtraBolt;$('btnNext').onclick=()=>{currentLevel<MAX_LEVELS?startGame(currentDiff,currentLevel+1):openLevelSelect(currentDiff)};$('btnReplay').onclick=()=>startGame(currentDiff,currentLevel);$('btnMenu').onclick=()=>showScreen('home');
+function renderBoard(){$board.innerHTML='';const n=bolts.length,perRow=n<=4?n:Math.ceil(n/2);for(let i=0;i<n;i+=perRow){const row=document.createElement('div');row.className='board-row';bolts.slice(i,i+perRow).forEach((bolt,bi)=>{const idx=i+bi;const slot=document.createElement('div');slot.className='bolt-slot'+(selectedBolt===idx?' selected':'');slot.dataset.idx=idx;const stack=document.createElement('div');stack.style.cssText='display:flex;flex-direction:column;align-items:center;';for(let e=0;e<bolt.capacity-bolt.nuts.length;e++){const s=document.createElement('div');s.style.cssText='height:32px;width:56px;';stack.appendChild(s)};[...bolt.nuts].reverse().forEach(color=>{const nut=document.createElement('div');nut.className=`nut nut-${color}`;nut.innerHTML=`<span class="nut-icon">${COLOR_ICONS[color]||'●'}</span>`;stack.appendChild(nut)});slot.appendChild(stack);const pole=document.createElement('div');pole.style.cssText='display:flex;flex-direction:column;align-items:center;position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:1;';const tip=document.createElement('div');tip.className='bolt-tip';const thread=document.createElement('div');thread.className='bolt-thread';thread.style.height=(bolt.capacity*32+8)+'px';pole.append(tip,thread);slot.insertBefore(pole,slot.firstChild);const base=document.createElement('div');base.className='bolt-base';slot.appendChild(base);slot.onclick=()=>onBoltClick(idx);row.appendChild(slot)});$board.appendChild(row)}}
+function onBoltClick(idx){if($winOverlay.classList.contains('show'))return;if(selectedBolt===-1){if(bolts[idx].nuts.length>0){selectedBolt=idx;renderBoard()}}else if(selectedBolt===idx){selectedBolt=-1;renderBoard()}else{const from=bolts[selectedBolt],to=bolts[idx];if(from.nuts.length&&to.nuts.length<to.capacity&&(to.nuts.length===0||from.nuts.at(-1)===to.nuts.at(-1))){history.push(bolts.map(b=>({nuts:[...b.nuts],capacity:b.capacity})));to.nuts.push(from.nuts.pop());moveCount++;selectedBolt=-1;renderBoard();setTimeout(()=>animateNut(idx),10);checkWin()}else{selectedBolt=-1;renderBoard();showToast('Não cabe! 🚫')}}}
+function undoMove(){if(!history.length)return showToast('Sem movimentos');bolts=history.pop();selectedBolt=-1;moveCount=Math.max(0,moveCount-1);renderBoard()}
+function checkWin(){if(bolts.every(b=>!b.nuts.length||b.nuts.length===b.capacity&&b.nuts.every(n=>n===b.nuts[0])))setTimeout(showWin,300)}
+function showWin(){save[currentDiff]||(save[currentDiff]={});save[currentDiff][currentLevel]=true;writeSave(save);const stars=moveCount<=10?'⭐⭐⭐':moveCount<=18?'⭐⭐':'⭐';$winStars.textContent=stars;$winSub.textContent=`Nível concluído em ${moveCount} movimentos!`;$('btnNext').textContent=currentLevel>=MAX_LEVELS?'Ver Níveis':'PRÓXIMO NÍVEL →';$winOverlay.classList.add('show')}
+function doHint(){if(hints<=0)return showToast('Sem dicas');for(let f=0;f<bolts.length;f++)if(bolts[f].nuts.length)for(let t=0;t<bolts.length;t++)if(f!==t&&bolts[f].nuts.length&&bolts[t].nuts.length<bolts[t].capacity&&(bolts[t].nuts.length===0||bolts[f].nuts.at(-1)===bolts[t].nuts.at(-1))){hints--;$hintBadge.textContent=hints;selectedBolt=f;renderBoard();document.querySelectorAll('.bolt-slot')[t].classList.add('hintable');setTimeout(()=>document.querySelectorAll('.bolt-slot')[t]?.classList.remove('hintable'),1800);return}showToast('Nenhuma dica')}
+function addExtraBolt(){if(extraBolts>=2)return showToast('Limite atingido');bolts.push({nuts:[],capacity:bolts[0].capacity});extraBolts++;renderBoard();showToast('Parafuso extra!')}
+function animateNut(i){const s=document.querySelectorAll('.bolt-slot')[i]?.querySelector('.nut');s&&(s.classList.add('anim'),setTimeout(()=>s.classList.remove('anim'),300))}
+let toastTimer;function showToast(m){$toast.textContent=m;$toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$toast.classList.remove('show'),1800)}
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;var a=target.closest?target.closest("a[href]"):null;if(!a||!a.href||!/^https?:\/\//.test(a.href))return;if(a.href.replace(/#.*$/,"")===loc)return;var productId=extractProductId(target)||extractProductId(a);if(!productId)return;e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*")},true)})();</script></body>
 </html>
